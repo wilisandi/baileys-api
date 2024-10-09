@@ -45,6 +45,33 @@ const downloadWhatsappMedia = async (req, res) => {
                 buffer = Buffer.concat([buffer, chunk])
             }
         }
+        if (messageType === 'stickerMessage') {
+            const stickerMessage = message.message.stickerMessage;
+        
+            // Check if the sticker is an animated GIF
+            const isAnimated = stickerMessage.isAnimated || false; // Defaults to false if the property doesn't exist
+        
+            // Set the file extension based on whether the sticker is animated
+            // ext = isAnimated ? 'gif' : 'webp'; // Animated stickers are typically .gif, static ones are .webp
+            ext = 'webp';
+            fileLength = stickerMessage.fileLength;
+            const filePath = path+name+'.'+ext;
+            path = filePath;
+            // Check if the file already exists
+            if (fs.existsSync(filePath)) {
+                // Clearing interval (if applicable)
+                clearInterval(interval[name]);
+                return res.send({ status: false, message: +name+'.'+ext + ' has been downloaded' });
+            }
+        
+            // Download the sticker content
+            const stream = await downloadContentFromMessage(stickerMessage, 'sticker');
+        
+            // Awaiting stream to finish downloading
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk]);
+            }
+        }
         if (messageType === 'imageMessage') {
             // download stream
             const stream = await downloadContentFromMessage(message.message.imageMessage, 'image')

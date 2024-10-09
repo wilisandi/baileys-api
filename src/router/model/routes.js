@@ -8,6 +8,7 @@ const createInstance = async (req, res) => {
     const { token } = req.body
     if ( token ) {
         try {
+            log.info(`Reconnectingsession1 ${token}`);
             const connect = await wa.connectToWhatsApp(token, req.io)
             const status = connect?.status
             const message = connect?.message
@@ -27,10 +28,10 @@ const createInstance = async (req, res) => {
 
 const sendText = async (req, res) => {
 
-    const { token, number, text } = req.body
+    const { token, number, text,replyToMessageId,participantId } = req.body
 
     if ( token && number && text ) {
-        const sendingTextMessage = await wa.sendText(token, number, text)
+        const sendingTextMessage = await wa.sendText(token, number, text,replyToMessageId,participantId)
         if (sendingTextMessage) {
             return res.send({status: true, data: sendingTextMessage})
         }
@@ -42,10 +43,10 @@ const sendText = async (req, res) => {
 
 const sendMedia = async (req, res) => {
 
-    const { token, number, type, url, fileName, caption } = req.body
+    const { token, number, type, url, fileName, caption,replyToMessageId,participantId } = req.body
 
     if ( token && number && type && url ) {
-        const sendingMediaMessage = await wa.sendMedia(token, number, type, url, fileName, caption)
+        const sendingMediaMessage = await wa.sendMedia(token, number, type, url, fileName, caption,replyToMessageId,participantId)
         if (sendingMediaMessage) return res.send({status: true, data: sendingMediaMessage})
         return res.send({status: false, message: 'Check your connection'})
     }

@@ -40,7 +40,7 @@
     This input is for post the Token
     <br />
     <input type="text" name="token">
-    <input type="submit" name="submit">
+    <input type="submit" name="submit"> 
     <br />
     <label for="">TOKEN</label>
     <br />
