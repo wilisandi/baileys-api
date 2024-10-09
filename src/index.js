@@ -120,6 +120,6 @@ function autostartInstance() {
 }
 
 // delaying app 5 second before autostart, to more eficient ram.
-// setTimeout(() => {
-//   autostartInstance();
-// }, 5000);
+setTimeout(() => {
+  autostartInstance();
+}, 5000);
