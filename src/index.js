@@ -44,6 +44,30 @@ const io = require("socket.io")(server, {
   cors: {
     origin: process.env.ORIGIN,
   },
+  reconnection: true,         // Enable automatic reconnection
+  reconnectionAttempts: Infinity,   // Number of reconnection attempts before giving up
+  reconnectionDelay: 1000,    // Delay in milliseconds between reconnection attempts
+  reconnectionDelayMax: 5000,  // Maximum delay for reconnection
+  randomizationFactor: 0.5,    // Randomization factor for reconnection delay
+});
+io.on("connect", () => {
+  console.log("IOConnected to server");
+});
+
+io.on("disconnect", (reason) => {
+  console.log(`IODisconnected from server: ${reason}`);
+});
+
+io.on("reconnect_attempt", (attempt) => {
+  console.log(`IOReconnection attempt: ${attempt}`);
+});
+
+io.on("reconnect", (attempt) => {
+  console.log(`IOReconnected on attempt: ${attempt}`);
+});
+
+io.on("reconnect_failed", () => {
+  console.log("IOReconnection failed after maximum attempts.");
 });
 // middleware
 app.use((req, res, next) => {
@@ -120,6 +144,6 @@ function autostartInstance() {
 }
 
 // delaying app 5 second before autostart, to more eficient ram.
-setTimeout(() => {
-  autostartInstance();
-}, 5000);
+// setTimeout(() => {
+//   autostartInstance();
+// }, 5000);

@@ -1,6 +1,6 @@
 'use strict'
 
-const { downloadContentFromMessage } = require('../../baileys/lib')
+const { downloadContentFromMessage } = require('baileys')
 const logger = require('../../lib/pino')
 const fs = require('fs')
 

@@ -11,7 +11,7 @@ const {
   downloadContentFromMessage,
   DisconnectReason,
   proto,
-} = require("../../baileys/lib");
+} = require("baileys");
 const QRCode = require("qrcode");
 
 const lib = require("../../lib");
@@ -32,7 +32,7 @@ const MAIN_LOGGER = require("../../lib/pino");
 const json = require("body-parser/lib/types/json");
 const logger = MAIN_LOGGER.child({ level: "info" });
 
-const msgRetryCounterMap = () => MessageRetryMap = {};
+const msgRetryCounterMap = () => (MessageRetryMap = {});
 
 // start a connection
 const connectToWhatsApp = async (token, io) => {
@@ -52,9 +52,9 @@ const connectToWhatsApp = async (token, io) => {
       number = number[0] + "@s.whatsapp.net";
       const ppUrl = await getPpUrl(token, number);
       io.emit("connection-open", { token, user: sock[token].user, ppUrl });
-      if(ppUrl!=false){
+      if (ppUrl != false) {
         return { status: true, message: "Already connected" };
-      }else{
+      } else {
         io.emit("message", { token, message: `Try to connecting ${token}` });
         console.log(`Try to connecting ${token}`);
         winstonLog({
@@ -63,12 +63,12 @@ const connectToWhatsApp = async (token, io) => {
           json: {
             tag: "manageIncomingMessage",
             message: `Try to connecting ${token}`,
-            data: error,
+            data: "PpUrl false",
           },
         });
       }
     } catch (error) {
-      io.emit("message", { token, message: `Try to connecting ${token}` });
+      io.emit("message", { token, message: `Try to connecting Error ${token} ${error}` });
       console.log(`Try to connecting ${token}`);
       winstonLog({
         tag: "connect",
@@ -159,7 +159,7 @@ const connectToWhatsApp = async (token, io) => {
             data: jid,
           },
         });
-        if (jid.endsWith("@newsletter")||jid.endsWith("@broadcast")) {
+        if (jid.endsWith("@newsletter") || jid.endsWith("@broadcast")) {
           return true;
         } else {
           return false;
@@ -232,8 +232,7 @@ const connectToWhatsApp = async (token, io) => {
               delete qrcode[token];
               if (
                 lastDisconnect?.error?.output?.statusCode ==
-                  DisconnectReason.loggedOut ||
-                lastDisconnect?.error?.output?.statusCode == 403
+                  DisconnectReason.loggedOut
               ) {
                 try {
                   await clearConnection(token);
@@ -256,28 +255,71 @@ const connectToWhatsApp = async (token, io) => {
                     },
                   });
                 }
+              } else if (
+                lastDisconnect?.error?.output?.statusCode ==
+                  DisconnectReason.connectionLost ||
+                lastDisconnect?.error?.output?.statusCode ==
+                  DisconnectReason.timedOut
+              ) {
+                console.log(
+                  `Connection Lost ${lastDisconnect?.error?.output?.statusCode}`
+                );
+              } else if (
+                lastDisconnect?.error?.output?.statusCode ==
+                  DisconnectReason.connectionReplaced
+              ) {
+                console.log(
+                  `Connection Replaced ${lastDisconnect?.error?.output?.statusCode}`
+                );
+              } else if (
+                lastDisconnect?.error?.output?.statusCode ==
+                  DisconnectReason.restartRequired
+              ) {
+                // try {
+                //   io.emit("connection-close", {
+                //     token: token,
+                //     message: "Connecting",
+                //   });
+                //   log.info(`Reconnectingsession4 ${token}`);
+                //   await connectToWhatsApp(token, io);
+                //   return null;
+                // } catch (error) {
+                //   var er = error;
+                //   winstonLog({
+                //     tag: "errorReconnect",
+                //     token: token,
+                //     json: {
+                //       tag: "errorrConnectWhatsapp",
+                //       message: "LogOut BadSession",
+                //       data: error,
+                //     },
+                //   });
+                // }
               } else {
-                try {
-                  log.info(`Reconnectingsession4 ${token}`);
-                  await connectToWhatsApp(token, io);
-                  io.emit("connection-close", {
-                    token: token,
-                    message: "Connecting",
-                  });
-                } catch (error) {
-                  console.log(
-                    `Error Bos ${lastDisconnect?.error?.output?.statusCode}`
-                  );
-                  winstonLog({
-                    tag: "errorReconnect",
-                    token: token,
-                    json: {
-                      tag: "errorConnectWhatsapp",
-                      message: `Disconnect Code ${lastDisconnect?.error?.output?.statusCode}`,
-                      data: error,
-                    },
-                  }); // Retry the loop on error
-                }
+                console.log(
+                  `Connection Closed Else ${lastDisconnect?.error?.output?.statusCode}`
+                );
+                // try {
+                //   log.info(`Reconnectingsession4 ${token}`);
+                //   await connectToWhatsApp(token, io);
+                //   io.emit("connection-close", {
+                //     token: token,
+                //     message: "Connecting",
+                //   });
+                // } catch (error) {
+                //   console.log(
+                //     `Error Bos ${lastDisconnect?.error?.output?.statusCode}`
+                //   );
+                //   winstonLog({
+                //     tag: "errorReconnect",
+                //     token: token,
+                //     json: {
+                //       tag: "errorConnectWhatsapp",
+                //       message: `Disconnect Code ${lastDisconnect?.error?.output?.statusCode}`,
+                //       data: error,
+                //     },
+                //   }); // Retry the loop on error
+                // }
               }
               // else if (
               //   lastDisconnect?.error?.output?.statusCode !==
@@ -414,6 +456,29 @@ const connectToWhatsApp = async (token, io) => {
               json: { chats, isLatest },
             });
           }
+          if (events["chats.upsert"]) {
+            const { chats, isLatest } = events["chats.set"];
+            console.log(
+              `Token: ${token} event recv ${chats.length} chats (is latest: ${isLatest})`
+            );
+            winstonLog({
+              tag: "chats.upsert",
+              token: token,
+              json: {
+                tag: "chats.upsert",
+                message: "chats set",
+                data: {
+                  token: token,
+                  chatsSet: { chats, isLatest },
+                },
+              },
+            });
+            writeJsonToFile({
+              token: token,
+              name: "chats",
+              json: { chats, isLatest },
+            });
+          }
 
           // message history received
           if (events["messages.set"]) {
@@ -447,6 +512,35 @@ const connectToWhatsApp = async (token, io) => {
 
           if (events["contacts.set"]) {
             const { contacts, isLatest } = events["contacts.set"];
+            console.log(
+              `Token: ${token} recv ${contacts.length} contacts (is latest: ${isLatest})`
+            );
+            winstonLog({
+              tag: "contacts-upsert",
+              token: token,
+              json: {
+                tag: "contacts-upsert",
+                message: "contacts upsert",
+                data: {
+                  token: token,
+                  contactsSet: { contacts, isLatest },
+                },
+              },
+            });
+            writeJsonToFile({
+              token: token,
+              name: "contacts",
+              json: { contacts, isLatest },
+            });
+            manageIncomingMessage({
+              token,
+              upsert: events["contacts.set"],
+              io,
+            });
+          }
+
+          if (events["contacts.upsert"]) {
+            const { contacts, isLatest } = events["contacts.upsert"];
             console.log(
               `Token: ${token} recv ${contacts.length} contacts (is latest: ${isLatest})`
             );
@@ -643,6 +737,12 @@ const connectToWhatsApp = async (token, io) => {
       manageIncomingMessage({ token, upsert: m, io });
     });
 
+    sock[token].onUnexpectedError((error, msg) => {
+      console.log("error disini");
+      console.log(error);
+      console.log(msg);
+    });
+
     return {
       sock: sock[token],
       qrcode: qrcode[token],
@@ -662,7 +762,7 @@ const connectToWhatsApp = async (token, io) => {
 };
 
 // text message
-async function sendText(token, number, text, replyToMessageId,participantId) {
+async function sendText(token, number, text, replyToMessageId, participantId) {
   try {
     if (Array.isArray(number)) {
       for (let i = 0; i < number.length; i++) {
@@ -681,14 +781,18 @@ async function sendText(token, number, text, replyToMessageId,participantId) {
     } else {
       var reply = {};
       if (replyToMessageId) {
-        if(number.includes("@g.us")){
+        if (number.includes("@g.us")) {
           reply = {
             quoted: {
-              key: { id: replyToMessageId, remoteJid: number, participant: participantId },
+              key: {
+                id: replyToMessageId,
+                remoteJid: number,
+                participant: participantId,
+              },
               message: { conversation: "" },
             },
           };
-        }else{
+        } else {
           reply = {
             quoted: {
               key: { id: replyToMessageId, remoteJid: number },
@@ -697,6 +801,7 @@ async function sendText(token, number, text, replyToMessageId,participantId) {
           };
         }
       }
+      console.log(reply);
       const sendingTextMessage = await sock[token].sendMessage(
         number,
         {
@@ -726,7 +831,16 @@ async function sendText(token, number, text, replyToMessageId,participantId) {
 }
 
 // media
-async function sendMedia(token, number, type, url, fileName, caption,replyToMessageId,participantId) {
+async function sendMedia(
+  token,
+  number,
+  type,
+  url,
+  fileName,
+  caption,
+  replyToMessageId,
+  participantId
+) {
   /**
    * type is "url" or "local"
    * if you use local, you must upload into src/public/temp/[fileName]
@@ -826,14 +940,18 @@ async function sendMedia(token, number, type, url, fileName, caption,replyToMess
     }
     var reply = {};
     if (replyToMessageId) {
-      if(number.includes("@g.us")){
+      if (number.includes("@g.us")) {
         reply = {
           quoted: {
-            key: { id: replyToMessageId, remoteJid: number, participant: participantId },
+            key: {
+              id: replyToMessageId,
+              remoteJid: number,
+              participant: participantId,
+            },
             message: { conversation: "" },
           },
         };
-      }else{
+      } else {
         reply = {
           quoted: {
             key: { id: replyToMessageId, remoteJid: number },
@@ -855,7 +973,7 @@ async function sendMedia(token, number, type, url, fileName, caption,replyToMess
       }
       return `Sending ${number.length} message start`;
     } else {
-      var sendMsg = await sock[token].sendMessage(number, data,reply);
+      var sendMsg = await sock[token].sendMessage(number, data, reply);
       // console.log(sendMsg)
       return sendMsg;
     }
@@ -1106,21 +1224,35 @@ async function groupMetadata(token, number) {
   }
 }
 
+async function getAllGroups(token) {
+  try {
+    const allChats = sock[token].chats.all();
+    
+    // Filter to get only group chats
+    const groups = allChats.filter(chat => chat.jid.endsWith('@g.us'));
+    
+    console.log('Groups:', groups);
+    return groups;
+  } catch (error) {
+    console.error('Error fetching groups:', error);
+  }
+}
+
 // close connection
 async function deleteCredentials(token) {
   try {
-    await sock[token].logout();
+    // await sock[token].logout();
+    clearInterval(intervalStore[token]);
+    clearInterval(intervalConnCheck[token]);
     delete sock[token];
     delete qrcode[token];
     delete counterQr[token];
-    clearInterval(intervalStore[token]);
-    clearInterval(intervalConnCheck[token]);
-    fs.rmdir(`credentials/${token}`, { recursive: true }, (err) => {
-      // if (err) {
-      //     throw err;
-      // }
-      console.log(`credentials/${token} is deleted`);
-    });
+    // fs.rmdir(`credentials/${token}`, { recursive: true }, (err) => {
+    //   // if (err) {
+    //   //     throw err;
+    //   // }
+    //   console.log(`credentials/${token} is deleted`);
+    // });
     return {
       status: true,
       message: "Deleting session and credential",

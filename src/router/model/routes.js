@@ -4,7 +4,6 @@ const wa = require('./whatsapp')
 const lib = require('../../lib')
 
 const createInstance = async (req, res) => {
-
     const { token } = req.body
     if ( token ) {
         try {
@@ -170,7 +169,6 @@ const deleteCredentials = async (req, res) => {
 }
 
 module.exports = {
-    
     createInstance,
     sendText,
     sendMedia,
