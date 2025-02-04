@@ -4,7 +4,6 @@ const fs = require('fs')
 const whatsapp = require('./whatsapp')
 
 const chats = async (req, res) => {
-
     const { token, type, jid } = req.body
     if ( token && type ) {
         try {

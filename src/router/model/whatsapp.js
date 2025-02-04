@@ -30,6 +30,7 @@ const axios = require("axios");
  **********************************************************/
 const MAIN_LOGGER = require("../../lib/pino");
 const json = require("body-parser/lib/types/json");
+const { useSQLiteAuthState } = require("./sqliteAuthState");
 const logger = MAIN_LOGGER.child({ level: "info" });
 
 const msgRetryCounterMap = () => (MessageRetryMap = {});
@@ -81,8 +82,8 @@ const connectToWhatsApp = async (token, io) => {
       });
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(
-      `credentials/${token}`
+    const { state, saveCreds } = await useSQLiteAuthState(
+      `credentials/auth.db`,token
     );
 
     // fetch latest version of Chrome For Linux
@@ -132,7 +133,12 @@ const connectToWhatsApp = async (token, io) => {
         });
       }
     }, 10000);
-    delete sock[token];
+    if(sock[token]){
+      console.log(`deleting socket ${token}`)
+      sock[token].ev.removeAllListeners()
+      delete sock[token];
+      console.log(`done deleting socket ${token}`)
+    } 
     sock[token] = makeWASocket({
       version,
       // browser: ['Linux', 'Chrome', '103.0.5060.114'],
@@ -159,9 +165,17 @@ const connectToWhatsApp = async (token, io) => {
             data: jid,
           },
         });
-        if (jid.endsWith("@newsletter") || jid.endsWith("@broadcast")) {
-          return true;
-        } else {
+        if(jid){
+          try{
+            if (jid.endsWith("@newsletter") || jid.endsWith("@broadcast")) {
+              return true;
+            } else {
+              return false;
+            }
+          }catch(error){
+            return false;
+          }
+        }else{
           return false;
         }
       },
@@ -171,7 +185,7 @@ const connectToWhatsApp = async (token, io) => {
       getMessage: async (key) => {
         try {
           let msg = await readJsonFromFile({ token, name: "messages" });
-          msg = msg.messages.filter((x) => x.key.id === key.id);
+          msg = msg.json.messages.filter((x) => x.key.id === key.id);
           return msg.message;
         } catch (error) {
           try {
@@ -205,11 +219,12 @@ const connectToWhatsApp = async (token, io) => {
       // events is a map for event name => event data
       async (events) => {
         try {
+          console.log("events",events)
           // something about the connection changed
           // maybe it closed, or we received all offline message or connection opened
           if (events["connection.update"]) {
             const update = events["connection.update"];
-            const { connection, lastDisconnect, qr } = update;
+            const { connection, lastDisconnect, qr,receivedPendingNotifications  } = update;
 
             // winstonLog({
             //   tag: "connection.update",
@@ -261,16 +276,56 @@ const connectToWhatsApp = async (token, io) => {
                 lastDisconnect?.error?.output?.statusCode ==
                   DisconnectReason.timedOut
               ) {
-                console.log(
-                  `Connection Lost ${lastDisconnect?.error?.output?.statusCode}`
-                );
+                // console.log(
+                //   `Connection Lost ${lastDisconnect?.error?.output?.statusCode}`
+                // );
+                // try {
+                //   io.emit("connection-close", {
+                //     token: token,
+                //     message: "Connecting",
+                //   });
+                //   log.info(`Reconnectingsession4 ${token}`);
+                //   await connectToWhatsApp(token, io);
+                //   return null;
+                // } catch (error) {
+                //   var er = error;
+                //   winstonLog({
+                //     tag: "errorReconnect",
+                //     token: token,
+                //     json: {
+                //       tag: "errorrConnectWhatsapp",
+                //       message: "LogOut BadSession",
+                //       data: error,
+                //     },
+                //   });
+                // }
               } else if (
                 lastDisconnect?.error?.output?.statusCode ==
                   DisconnectReason.connectionReplaced
               ) {
-                console.log(
-                  `Connection Replaced ${lastDisconnect?.error?.output?.statusCode}`
-                );
+                // console.log(
+                //   `Connection Replaced ${lastDisconnect?.error?.output?.statusCode}`
+                // );
+                // try {
+                //   io.emit("connection-close", {
+                //     token: token,
+                //     message: "Connecting",
+                //   });
+                //   log.info(`Reconnectingsession4 ${token}`);
+                //   await connectToWhatsApp(token, io);
+                //   return null;
+                // } catch (error) {
+                //   var er = error;
+                //   winstonLog({
+                //     tag: "errorReconnect",
+                //     token: token,
+                //     json: {
+                //       tag: "errorrConnectWhatsapp",
+                //       message: "LogOut BadSession",
+                //       data: error,
+                //     },
+                //   });
+                // }
               } else if (
                 lastDisconnect?.error?.output?.statusCode ==
                   DisconnectReason.restartRequired
@@ -296,9 +351,29 @@ const connectToWhatsApp = async (token, io) => {
                 //   });
                 // }
               } else {
-                console.log(
-                  `Connection Closed Else ${lastDisconnect?.error?.output?.statusCode}`
-                );
+                // try {
+                //   io.emit("connection-close", {
+                //     token: token,
+                //     message: "Connecting",
+                //   });
+                //   log.info(`Reconnectingsession4 ${token}`);
+                //   await connectToWhatsApp(token, io);
+                //   return null;
+                // } catch (error) {
+                //   var er = error;
+                //   winstonLog({
+                //     tag: "errorReconnect",
+                //     token: token,
+                //     json: {
+                //       tag: "errorrConnectWhatsapp",
+                //       message: "LogOut BadSession",
+                //       data: error,
+                //     },
+                //   });
+                // }
+                // console.log(
+                //   `Connection Closed Else ${lastDisconnect?.error?.output?.statusCode}`
+                // );
                 // try {
                 //   log.info(`Reconnectingsession4 ${token}`);
                 //   await connectToWhatsApp(token, io);
@@ -377,7 +452,9 @@ const connectToWhatsApp = async (token, io) => {
 
             // CONNECTION OPEN
             if (connection === "open") {
-              sock[token].ev.flush(true);
+              if (receivedPendingNotifications && !sock[token].authState.creds?.myAppStateKeyId){
+                sock[token].ev.flush() // this
+              }
               logger.info("opened connection");
               logger.info(sock[token].user);
               await sock[token].sendPresenceUpdate("unavailable");
@@ -412,7 +489,11 @@ const connectToWhatsApp = async (token, io) => {
 
           // credentials updated -- save them
           if (events["creds.update"]) {
-            await saveCreds();
+            try{
+              await saveCreds();
+            }catch(error){
+              console.log(error)
+            }
           }
 
           if (events.call) {
@@ -457,6 +538,7 @@ const connectToWhatsApp = async (token, io) => {
             });
           }
           if (events["chats.upsert"]) {
+            console.log("chats.upsert",events["chats.upsert"])
             const { chats, isLatest } = events["chats.set"];
             console.log(
               `Token: ${token} event recv ${chats.length} chats (is latest: ${isLatest})`
@@ -479,13 +561,19 @@ const connectToWhatsApp = async (token, io) => {
               json: { chats, isLatest },
             });
           }
+          if (events["messaging-history.set"]) {
+            const { contacts, isLatest } = events["messaging-history.set"];
+            writeJsonToFile({
+              token: token,
+              name: "contacts",
+              json: { contacts, isLatest },
+            });
+          }
+
 
           // message history received
           if (events["messages.set"]) {
             const { messages, isLatest } = events["messages.set"];
-            console.log(
-              `Token: ${token} recv ${messages.length} messages (is latest: ${isLatest})`
-            );
             winstonLog({
               tag: "messages-set",
               token: token,
@@ -512,9 +600,6 @@ const connectToWhatsApp = async (token, io) => {
 
           if (events["contacts.set"]) {
             const { contacts, isLatest } = events["contacts.set"];
-            console.log(
-              `Token: ${token} recv ${contacts.length} contacts (is latest: ${isLatest})`
-            );
             winstonLog({
               tag: "contacts-upsert",
               token: token,
@@ -539,11 +624,17 @@ const connectToWhatsApp = async (token, io) => {
             });
           }
 
+          if (events["contacts.update"]) {
+            const { contacts, isLatest } = events["contacts.update"];
+            writeJsonToFile({
+              token: token,
+              name: "contacts",
+              json: { contacts, isLatest },
+            });
+          }
+
           if (events["contacts.upsert"]) {
             const { contacts, isLatest } = events["contacts.upsert"];
-            console.log(
-              `Token: ${token} recv ${contacts.length} contacts (is latest: ${isLatest})`
-            );
             winstonLog({
               tag: "contacts-upsert",
               token: token,
@@ -579,10 +670,6 @@ const connectToWhatsApp = async (token, io) => {
 
           // messages updated like status delivered, message deleted etc.
           if (events["messages.update"]) {
-            console.log(
-              `Token: ${token} messages update`,
-              events["messages.update"]
-            );
             winstonLog({
               tag: "messages-update",
               token: token,
@@ -748,7 +835,7 @@ const connectToWhatsApp = async (token, io) => {
       qrcode: qrcode[token],
     };
   } catch (error) {
-    console.log("ConnectToWhatsapp error");
+    console.log("ConnectToWhatsapp error",error);
     winstonLog({
       tag: "connectWhatsApp",
       token: token,
@@ -1286,6 +1373,11 @@ async function getChromeLates() {
 }
 
 async function clearConnection(token) {
+  try{
+    await sock[token].logout();
+  }catch(error){
+    console.log(error)
+  }
   delete sock[token];
   delete qrcode[token];
   delete counterQr[token];
@@ -1423,10 +1515,18 @@ function winstonLog({ tag, token, json }) {
 
 function writeJsonToFile({ token, name, json }) {
   const path = `credentials/${token}/${name}.json`;
+  const folderPath = `credentials/${token}`;
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
   if (fs.existsSync(path)) {
     var arr = JSON.parse(fs.readFileSync(path));
     if (name === "messages" && arr?.messages && json?.messages) {
-      chachedMsg = [...chachedMsg, ...json.messages];
+      if(arr.messages.length > 0){
+        chachedMsg = [...chachedMsg, ...json.messages];
+      }else{
+        chachedMsg = [...arr.messages,...json.messages];
+      }
       json = {
         messages: [...arr.messages, ...json.messages],
         isLatest: json.isLatest,
