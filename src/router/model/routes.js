@@ -1,6 +1,5 @@
 'use strict'
 
-const wa = require('./whatsapp')
 const lib = require('../../lib')
 
 const createInstance = async (req, res) => {
@@ -8,7 +7,7 @@ const createInstance = async (req, res) => {
     if ( token ) {
         try {
             log.info(`Reconnectingsession1 ${token}`);
-            const connect = await wa.connectToWhatsApp(token, req.io)
+            const connect = await req.wa.connectToWhatsApp(token, req.io)
             const status = connect?.status
             const message = connect?.message
             return res.send({
@@ -30,7 +29,7 @@ const sendText = async (req, res) => {
     const { token, number, text,replyToMessageId,participantId } = req.body
 
     if ( token && number && text ) {
-        const sendingTextMessage = await wa.sendText(token, number, text,replyToMessageId,participantId)
+        const sendingTextMessage = await req.wa.sendText(token, number, text,replyToMessageId,participantId)
         if (sendingTextMessage) {
             return res.send({status: true, data: sendingTextMessage})
         }
@@ -45,7 +44,7 @@ const sendMedia = async (req, res) => {
     const { token, number, type, url, fileName, caption,replyToMessageId,participantId } = req.body
 
     if ( token && number && type && url ) {
-        const sendingMediaMessage = await wa.sendMedia(token, number, type, url, fileName, caption,replyToMessageId,participantId)
+        const sendingMediaMessage = await req.wa.sendMedia(token, number, type, url, fileName, caption,replyToMessageId,participantId)
         if (sendingMediaMessage) return res.send({status: true, data: sendingMediaMessage})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -58,7 +57,7 @@ const sendButtonMessage = async (req, res) => {
     const { token, number, button, message, footer, type, image } = req.body
     
     if ( token && number && button && message && footer ) {
-        const sendButtonMessage = await wa.sendButtonMessage(token, number, button, message, footer, type, image)
+        const sendButtonMessage = await req.wa.sendButtonMessage(token, number, button, message, footer, type, image)
         if (sendButtonMessage) return res.send({status: true, data: sendButtonMessage})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -71,7 +70,7 @@ const sendTemplateMessage = async (req, res) => {
     const { token, number, button, text, footer, image } = req.body
 
     if ( token && number && button && text && footer ) {
-        const sendTemplateMessage = await wa.sendTemplateMessage( token, number, button, text, footer, image )
+        const sendTemplateMessage = await req.wa.sendTemplateMessage( token, number, button, text, footer, image )
         if (sendTemplateMessage) return res.send({status: true, data: sendTemplateMessage})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -84,7 +83,7 @@ const sendListMessage = async (req, res) => {
     const { token, number, list, text, footer, title, buttonText } = req.body
 
     if ( token && number && list && text && footer && title && buttonText ) {
-        const sendListMessage = await wa.sendListMessage(token, number, list, text, footer, title, buttonText)
+        const sendListMessage = await req.wa.sendListMessage(token, number, list, text, footer, title, buttonText)
         if ( sendListMessage ) return res.send({status: true, data: sendListMessage})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -97,7 +96,7 @@ const sendReaction = async (req, res) => {
     const { token, number, text, key } = req.body
 
     if ( token && number && text && key ) {
-        const sendReaction = await wa.sendReaction(token, number, text, key)
+        const sendReaction = await req.wa.sendReaction(token, number, text, key)
         if ( sendReaction ) return res.send({status: true, data: sendReaction})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -110,7 +109,7 @@ const isExists = async (req, res) => {
     const { token, number } = req.body
     
     if ( token && number ) {
-        const isExists = await wa.isExist(token, number)
+        const isExists = await req.wa.isExist(token, number)
         if (isExists) return res.send({status: true, data: isExists})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -123,7 +122,7 @@ const getPpUrl = async (req, res) => {
     const { token, number, highrest } = req.body
 
     if ( token && number && highrest ) {
-        const getPpUrl = await wa.getPpUrl(token, number, highrest)
+        const getPpUrl = await req.wa.getPpUrl(token, number, highrest)
         if ( getPpUrl ) return res.send({status: true, data: getPpUrl})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -136,7 +135,7 @@ const deleteEveryOne = async (req, res) => {
     const { token, number, key } = req.body
 
     if ( token && number && key ) {
-        const deleteEveryOne = await wa.deleteEveryOne(token, number, key)
+        const deleteEveryOne = await req.wa.deleteEveryOne(token, number, key)
         if ( deleteEveryOne ) return res.send({status: true, data: deleteEveryOne})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -148,7 +147,7 @@ const groupMetadata = async (req, res) => {
     const { token, number } = req.body
 
     if (token && number) {
-        const groupMetadata = await wa.groupMetadata(token, number)
+        const groupMetadata = await req.wa.groupMetadata(token, number)
         if ( groupMetadata ) return res.send({status: true, data: groupMetadata})
         return res.send({status: false, message: 'Check your connection'})
     }
@@ -160,7 +159,7 @@ const deleteCredentials = async (req, res) => {
     const { token } = req.body
 
     if (token) {
-        const deleteCredentials = await wa.deleteCredentials(token)
+        const deleteCredentials = await req.wa.deleteCredentials(token)
         if ( deleteCredentials ) return res.send({status: true, data: deleteCredentials})
         return res.send({status: false, message: 'Check your connection'})
     }

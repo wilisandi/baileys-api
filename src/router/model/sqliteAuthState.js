@@ -92,6 +92,17 @@ const useSQLiteAuthState = async (dbPath, id) => {
         await db.run(`DELETE FROM auth WHERE id = ?`, key);
     };
 
+    const removeAllData = async (key) => {
+        
+        console.log(
+            `Start remove all data`
+          );
+        await db.run(`DELETE FROM auth WHERE id like '${key}%'`);
+        console.log(
+            `End remove all data`
+          );
+    };
+
     const creds = await readData(`${id}-creds.json`) || initAuthCreds();
 
     return {
@@ -123,6 +134,7 @@ const useSQLiteAuthState = async (dbPath, id) => {
             }
         },
         saveCreds: () => writeData(`${id}-creds.json`, creds),
+        removeCreds: () => removeAllData(`${id}-`),
         close: () => db.close()
     };
 };

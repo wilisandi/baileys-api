@@ -56,33 +56,33 @@ const connectToWhatsApp = async (token, io) => {
       if (ppUrl != false) {
         return { status: true, message: "Already connected" };
       } else {
-        io.emit("message", { token, message: `Try to connecting ${token}` });
-        console.log(`Try to connecting ${token}`);
+        io.emit("message", { token, message: `Ping to account ${token}` });
+        console.log(`Ping to account ${token}`);
         winstonLog({
           tag: "connect",
           token: token,
           json: {
             tag: "manageIncomingMessage",
-            message: `Try to connecting ${token}`,
+            message: `Ping to account ${token}`,
             data: "PpUrl false",
           },
         });
       }
     } catch (error) {
-      io.emit("message", { token, message: `Try to connecting Error ${token} ${error}` });
-      console.log(`Try to connecting ${token}`);
+      io.emit("message", { token, message: `Ping to account Error ${token} ${error}` });
+      console.log(`Ping to account ${token}`);
       winstonLog({
         tag: "connect",
         token: token,
         json: {
           tag: "manageIncomingMessage",
-          message: `Try to connecting ${token}`,
+          message: `Ping to account ${token}`,
           data: error,
         },
       });
     }
 
-    const { state, saveCreds } = await useSQLiteAuthState(
+    const { state, saveCreds,removeCreds } = await useSQLiteAuthState(
       `credentials/auth.db`,token
     );
 
@@ -250,6 +250,7 @@ const connectToWhatsApp = async (token, io) => {
                   DisconnectReason.loggedOut
               ) {
                 try {
+                  await removeCreds();
                   await clearConnection(token);
                   io.emit("connection-close", {
                     token: token,
@@ -1329,11 +1330,15 @@ async function getAllGroups(token) {
 async function deleteCredentials(token) {
   try {
     // await sock[token].logout();
+    sock[token].end(new Error("User Disconnected"))
+
     clearInterval(intervalStore[token]);
     clearInterval(intervalConnCheck[token]);
     delete sock[token];
     delete qrcode[token];
     delete counterQr[token];
+    
+    console.log(`success delete ${token}`)
     // fs.rmdir(`credentials/${token}`, { recursive: true }, (err) => {
     //   // if (err) {
     //   //     throw err;

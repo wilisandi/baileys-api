@@ -40,6 +40,7 @@ const server = http.createServer(app);
 /**
  * SOCKET.IO
  */
+const wa = require("./router/model/whatsapp");
 const io = require("socket.io")(server, {
   cors: {
     origin: process.env.ORIGIN,
@@ -49,6 +50,16 @@ const io = require("socket.io")(server, {
   reconnectionDelay: 1000,    // Delay in milliseconds between reconnection attempts
   reconnectionDelayMax: 5000,  // Maximum delay for reconnection
   randomizationFactor: 0.5,    // Randomization factor for reconnection delay
+});
+io.on("connection", (socket) => {
+  const { token } = socket.handshake.query;
+  console.log(`User connected: ${socket.id} ${token} ${JSON.stringify(socket.handshake.query)}`);
+
+  // Jika perlu mendeteksi saat user disconnect
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id} ${token} ${JSON.stringify(socket.handshake.query)}`);
+    wa.deleteCredentials(token);
+  });
 });
 io.on("connect", () => {
   console.log("IOConnected to server");
@@ -73,6 +84,7 @@ io.on("reconnect_failed", () => {
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store");
   req.io = io;
+  req.wa = wa;
   // res.set('Cache-Control', 'no-store')
   next();
 });
@@ -100,7 +112,6 @@ app.get("/*", (req, res) => {
 server.listen(port, log.info(`Server run and listening port: ${port}`));
 
 function autostartInstance() {
-  const wa = require("./router/model/whatsapp");
   const scheduler = require("./router/model/scheduler");
 
   // looking for credentials saved
